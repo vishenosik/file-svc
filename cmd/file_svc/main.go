@@ -85,9 +85,12 @@ func NewApp() (*App, error) {
 
 	fileService := api.NewFileServiceApi(fileUsecase)
 
-	grpcServer, err := grpc.NewGrpcServer(grpc.GrpcServices{
-		fileService,
-	})
+	grpcServer, err := grpc.NewGrpcServer(
+		grpc.GrpcServices{
+			fileService,
+		},
+		grpc.WithLogInterceptors(),
+	)
 	if err != nil {
 		return nil, err
 	}

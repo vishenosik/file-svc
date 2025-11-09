@@ -15,6 +15,8 @@ func init() {
 }
 
 type FileServiceConfig struct {
+	UploadBatchSize uint32 `env:"FILE_UPLOAD_BATCH_SIZE" env-default:"10"`
+	MaxFileSize     uint32 `env:"FILE_MAX_FILE_SIZE" env-default:"10485760"`
 }
 
 func (FileServiceConfig) Desc() string {
