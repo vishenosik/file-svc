@@ -76,7 +76,10 @@ func NewApp() (*App, error) {
 
 	// USECASES
 
-	fileUsecase, err := usecases.NewFileService(fileStore)
+	fileUsecase, err := usecases.NewFileService(
+		fileStore,
+		fileStore,
+	)
 	if err != nil {
 		return nil, err
 	}

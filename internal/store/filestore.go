@@ -36,13 +36,14 @@ func (c FileStoreConfig) validate() error {
 	return nil
 }
 
-type FileSaver interface {
+type FileStorer interface {
 	Save(name string, file []byte) (id string, err error)
+	Get(id string) (file []byte, err error)
 }
 
 type FileStore struct {
 	log   *slog.Logger
-	saver FileSaver
+	store FileStorer
 
 	config FileStoreConfig
 }
@@ -62,32 +63,32 @@ func NewFileStore() (*FileStore, error) {
 		return nil, errors.Wrap(err, "failed to validate authentication service config")
 	}
 
-	var (
-		saver FileSaver
-		err   error
-	)
+	mongoStore, err := mongodb.NewFileStore()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create file store")
+	}
+
+	localStore := local.NewFileStore()
+
+	fs := &FileStore{
+		config: conf,
+		log:    log,
+	}
 
 	switch conf.Driver {
 	case DriverLocal:
-		saver = local.NewFileStore()
+		fs.store = localStore
 	case DriverMongoDb:
-		saver, err = mongodb.NewFileStore()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create file store")
-		}
+		fs.store = mongoStore
 	}
 
-	if saver == nil {
-		return nil, errors.New("saver is nil")
-	}
-
-	return &FileStore{
-		saver:  saver,
-		config: conf,
-		log:    log,
-	}, nil
+	return fs, nil
 }
 
-func (fs *FileStore) Save(name string, file []byte) (id string, err error) {
-	return fs.saver.Save(name, file)
+func (fs *FileStore) Save(name string, file []byte) (string, error) {
+	return fs.store.Save(name, file)
+}
+
+func (fs *FileStore) Get(id string) ([]byte, error) {
+	return fs.store.Get(id)
 }

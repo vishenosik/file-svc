@@ -15,8 +15,8 @@ func init() {
 }
 
 type FileServiceConfig struct {
-	UploadBatchSize uint32 `env:"FILE_UPLOAD_BATCH_SIZE" env-default:"10"`
-	MaxFileSize     uint32 `env:"FILE_MAX_FILE_SIZE" env-default:"10485760"`
+	BatchSize uint32 `env:"FILE_BATCH_SIZE" env-default:"100000"`
+	MaxSize   uint32 `env:"FILE_MAX_SIZE" env-default:"10485760"`
 }
 
 func (FileServiceConfig) Desc() string {
@@ -31,15 +31,21 @@ type FileSaver interface {
 	Save(name string, file []byte) (id string, err error)
 }
 
+type FileGetter interface {
+	Get(id string) (file []byte, err error)
+}
+
 type FileService struct {
-	log   *slog.Logger
-	saver FileSaver
+	log    *slog.Logger
+	saver  FileSaver
+	getter FileGetter
 
 	config FileServiceConfig
 }
 
 func NewFileService(
 	saver FileSaver,
+	getter FileGetter,
 ) (*FileService, error) {
 
 	log := logs.SetupLogger().With(
@@ -61,6 +67,7 @@ func NewFileService(
 
 	return &FileService{
 		saver:  saver,
+		getter: getter,
 		config: conf,
 		log:    log,
 	}, nil
@@ -76,4 +83,12 @@ func (fs *FileService) Upload(filename string, file []byte) (string, error) {
 		return "", err
 	}
 	return id, nil
+}
+
+func (fs *FileService) Download(id string) (file []byte, err error) {
+	file, err = fs.getter.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
 }

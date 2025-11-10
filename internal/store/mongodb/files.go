@@ -16,6 +16,7 @@ func (fs *FileStore) Save(filename string, file []byte) (string, error) {
 		fs.client.Database(fs.config.Database),
 		options.GridFSBucket().SetName(name),
 	)
+
 	if err != nil {
 		return "", err
 	}
@@ -44,4 +45,28 @@ func (fs *FileStore) Save(filename string, file []byte) (string, error) {
 	}
 
 	return id.Hex(), nil
+}
+
+func (fs *FileStore) Get(id string) (file []byte, err error) {
+
+	bucket, err := gridfs.NewBucket(
+		fs.client.Database(fs.config.Database),
+		options.GridFSBucket().SetName(name),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+
+	if _, err := bucket.DownloadToStream(objID, &buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
