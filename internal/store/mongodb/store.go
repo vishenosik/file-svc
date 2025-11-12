@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/vishenosik/gocherry/pkg/config"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -70,4 +71,11 @@ func connect(dsn string) (*mongo.Client, error) {
 	}
 
 	return client, nil
+}
+
+func (fs *FileStore) bucket() (*gridfs.Bucket, error) {
+	return gridfs.NewBucket(
+		fs.client.Database(fs.config.Database),
+		options.GridFSBucket().SetName(name),
+	)
 }

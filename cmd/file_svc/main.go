@@ -11,13 +11,19 @@ import (
 	"time"
 
 	// internal pkg
+
 	"github.com/vishenosik/file-svc-sdk/api"
-	"github.com/vishenosik/file-svc/internal/store"
-	"github.com/vishenosik/file-svc/internal/usecases"
 	"github.com/vishenosik/gocherry"
 	_ctx "github.com/vishenosik/gocherry/pkg/context"
+	"github.com/vishenosik/gocherry/pkg/errors"
 	"github.com/vishenosik/gocherry/pkg/grpc"
+
 	// internal
+
+	"github.com/vishenosik/file-svc/internal/dto"
+	"github.com/vishenosik/file-svc/internal/store/config"
+	"github.com/vishenosik/file-svc/internal/store/mongodb"
+	"github.com/vishenosik/file-svc/internal/usecase"
 )
 
 func main() {
@@ -56,37 +62,33 @@ func main() {
 	}
 }
 
-type Server interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
-}
-
-type App struct {
-	Server
-}
-
-func NewApp() (*App, error) {
+func NewApp() (*gocherry.App, error) {
 
 	// STORES
 
-	fileStore, err := store.NewFileStore()
+	mongoStore, err := mongodb.NewFileStore()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create file store")
 	}
+
+	configStore, err := config.NewService()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create config store")
+	}
+
+	// localStore := local.NewFileStore()
 
 	// USECASES
 
-	fileUsecase, err := usecases.NewFileService(
-		fileStore,
-		fileStore,
-	)
-	if err != nil {
-		return nil, err
-	}
+	settingsUsc := usecase.NewService(configStore)
+
+	providerUsc := usecase.NewProvider(mongoStore)
+
+	infoUsc := dto.NewInfoDTO(usecase.NewInfo(mongoStore))
 
 	// API
 
-	fileService := api.NewFileServiceApi(fileUsecase)
+	fileService := api.NewFileServiceApi(providerUsc, infoUsc, settingsUsc)
 
 	grpcServer, err := grpc.NewGrpcServer(
 		grpc.GrpcServices{
@@ -107,7 +109,5 @@ func NewApp() (*App, error) {
 		grpcServer,
 	)
 
-	return &App{
-		Server: app,
-	}, nil
+	return app, nil
 }
