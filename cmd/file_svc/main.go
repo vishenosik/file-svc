@@ -5,6 +5,7 @@ import (
 
 	"context"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -36,15 +37,14 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	// App init
 	app, err := NewApp()
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to init app %s", err.Error())
 	}
 
 	err = app.Start(ctx)
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to start app %s", err.Error())
 	}
 
 	// Graceful shut down
@@ -57,9 +57,7 @@ func main() {
 	)
 	defer cancel()
 
-	if err := app.Stop(stopctx); err != nil {
-		panic(err)
-	}
+	app.Stop(stopctx)
 }
 
 func NewApp() (*gocherry.App, error) {
@@ -90,6 +88,8 @@ func NewApp() (*gocherry.App, error) {
 
 	fileService := api.NewFileServiceApi(providerUsc, infoUsc, settingsUsc)
 
+	// SERVICES
+
 	grpcServer, err := grpc.NewGrpcServer(
 		grpc.GrpcServices{
 			fileService,
@@ -107,6 +107,7 @@ func NewApp() (*gocherry.App, error) {
 
 	app.AddServices(
 		grpcServer,
+		mongoStore,
 	)
 
 	return app, nil

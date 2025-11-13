@@ -55,7 +55,7 @@ func NewFileStore() (*FileStore, error) {
 
 // To connect to mongodb
 func connect(dsn string) (*mongo.Client, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	// mongo.Connect return mongo.Client method
@@ -78,4 +78,8 @@ func (fs *FileStore) bucket() (*gridfs.Bucket, error) {
 		fs.client.Database(fs.config.Database),
 		options.GridFSBucket().SetName(name),
 	)
+}
+
+func (fs *FileStore) Close(ctx context.Context) error {
+	return fs.client.Disconnect(ctx)
 }
