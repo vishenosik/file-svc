@@ -5,7 +5,6 @@ import (
 
 	"context"
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,6 +17,7 @@ import (
 	_ctx "github.com/vishenosik/gocherry/pkg/context"
 	"github.com/vishenosik/gocherry/pkg/errors"
 	"github.com/vishenosik/gocherry/pkg/grpc"
+	"github.com/vishenosik/gocherry/pkg/logs"
 
 	// internal
 
@@ -29,44 +29,48 @@ import (
 
 func main() {
 
+	log := logs.SetupLogger().With(logs.AppComponent("main"))
+
 	gocherry.Flags(os.Stdout, os.Args[1:],
 		gocherry.AppFlags(os.Stdout),
 		gocherry.ConfigFlags(os.Stdout),
 	)
 
 	flag.Parse()
+
 	ctx := context.Background()
 
-	app, err := NewApp()
+	app, err := NewApp(ctx)
 	if err != nil {
-		log.Fatalf("failed to init app %s", err.Error())
+		log.Error("failed to init app", logs.Error(err))
+		os.Exit(1)
 	}
 
 	err = app.Start(ctx)
 	if err != nil {
-		log.Fatalf("failed to start app %s", err.Error())
+		log.Error("failed to start app", logs.Error(err))
+		os.Exit(1)
 	}
 
 	// Graceful shut down
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
-	stopctx, cancel := context.WithTimeout(
-		_ctx.WithStopCtx(ctx, <-stop),
-		time.Second*5,
-	)
-	defer cancel()
+	stopctx, stopCancel := context.WithTimeout(_ctx.WithStopCtx(context.Background(), <-stop), time.Second*5)
+	defer stopCancel()
 
 	app.Stop(stopctx)
 }
 
-func NewApp() (*gocherry.App, error) {
+func NewApp(ctx context.Context) (*gocherry.App, error) {
+
+	// return nil, errors.New("testing")
 
 	// STORES
 
-	mongoStore, err := mongodb.NewFileStore()
+	mongoStore, err := mongodb.NewFileStoreRetry()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create file store")
+		return nil, err
 	}
 
 	configStore, err := config.NewService()
